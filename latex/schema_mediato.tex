@@ -1,0 +1,99 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+
+\title{homework6 Ingegneria dei Dati}
+\author{Alessandro Schmitt, Alessandro Cavina, Francesco Giovanardi, Michele Guida}
+
+\begin{document}
+
+\maketitle
+
+\section{Exploratory Data Analysis (EDA) e Selezione delle Feature}
+
+\subsection{Contesto e obiettivo}
+L'obiettivo iniziale del progetto consiste nel caratterizzare due sorgenti eterogenee di annunci di auto usate (Dataset \textbf{A} ``largo'' e Dataset \textbf{B} ``piccolo'') e nel definire uno \emph{schema mediato} per l'integrazione e il successivo record linkage. In questa fase si è svolta un'analisi esplorativa delle due sorgenti, concentrandosi su:
+\begin{itemize}
+  \item percentuale/quantità di valori mancanti per attributo;
+  \item numerosità di valori unici per attributo (cardinalità).
+\end{itemize}
+Queste statistiche guidano la scelta delle feature da mantenere/escludere, in funzione della loro utilità per blocking e matching.
+
+\subsection{Dataset B (piccolo): statistiche e deduzioni}
+Per il Dataset B (piccolo), le statistiche di missing e cardinalità evidenziano alcune colonne completamente vuote e altre con informazione utile ma spesso non direttamente comparabile con l'altra sorgente. In particolare:
+\begin{itemize}
+  \item Attributi completamente vuoti (100\% missing), dunque non utilizzabili: \texttt{vehicle\_damage\_category}, \texttt{combine\_fuel\_economy}, \texttt{is\_certified}.
+  \item Attributi tecnici o legati al venditore/annuncio, non utili per identificare il veicolo: \texttt{main\_picture\_url}, \texttt{sp\_name}, \texttt{seller\_rating}.
+  \item Attributi potenzialmente utili per la descrizione del veicolo e il record linkage: \texttt{fuel\_type}, \texttt{transmission}, \texttt{body\_type}, \texttt{mileage}, \texttt{description}.
+\end{itemize}
+
+\subsection{Dataset A (largo): statistiche e deduzioni}
+Per il Dataset A (largo), le statistiche mostrano un insieme di feature forti e stabili per identificare un veicolo, accanto a campi tecnici o troppo sparsi. In particolare:
+\begin{itemize}
+  \item Colonne completamente vuote o inutili: \texttt{county} (100\% missing).
+  \item Colonne identificative tecniche (alta cardinalità vicina al numero di righe) non utili al matching: \texttt{id}, \texttt{url}, \texttt{image\_url}, \texttt{posting\_date}.
+  \item Colonne stabili e informative, candidate al matching: \texttt{manufacturer}, \texttt{model}, \texttt{year}, \texttt{price}, \texttt{odometer}, \texttt{fuel}, \texttt{transmission}, \texttt{drive}, \texttt{type}, \texttt{state}.
+  \item Colonne rumorose o poco affidabili/soggettive, quindi escluse: \texttt{condition}, \texttt{paint\_color}, \texttt{size}, \texttt{cylinders}.
+  \item \texttt{VIN} è un identificatore reale utile esclusivamente per la creazione della ground truth, ma deve essere rimosso prima dell'addestramento e dell'inferenza per evitare leakage.
+\end{itemize}
+
+\subsection{Principio guida: interpretazione della cardinalità}
+La cardinalità (numero di valori unici) è stata usata come indicatore operativo:
+\begin{itemize}
+  \item Cardinalità molto alta ($\approx$ numero righe) $\Rightarrow$ attributi identificativi tecnici (URL, ID) o testo libero: non adatti a blocking/matching diretto.
+  \item Cardinalità bassa $\Rightarrow$ attributi categoriali stabili (es. marca, cambio): buoni candidati per blocking o matching.
+  \item Cardinalità media $\Rightarrow$ attributi informativi (prezzo, chilometraggio) da trattare con confronti \emph{approximate} (tolleranze/distanze) e non con uguaglianza esatta.
+\end{itemize}
+
+\section{Schema Mediato}
+
+\subsection{Definizione e obiettivo}
+Lo \emph{schema mediato} è un vocabolario comune di attributi che permette di rendere confrontabili le due sorgenti. Non è l'unione meccanica delle colonne (A $\cup$ B), ma una selezione e unificazione semantica orientata al record linkage:
+\begin{itemize}
+  \item unifica concetti equivalenti (es. trazione \texttt{drive} vs \texttt{wheel\_system});
+  \item include feature sorgente-specifiche solo se informative e stabili;
+  \item esclude attributi tecnici, rumorosi o non legati all'identità del veicolo.
+\end{itemize}
+
+\subsection{Tabella di mapping verso lo schema mediato}
+La Tabella~\ref{tab:mapping_mediated} riassume lo schema mediato proposto, indicando per ciascun attributo la provenienza (nome originale) in A e/o B e la motivazione.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{p{3.2cm} p{3.6cm} p{3.6cm} p{5.2cm}}
+\hline
+\textbf{Feature mediata} & \textbf{Dataset A (largo)} & \textbf{Dataset B (piccolo)} & \textbf{Motivazione (perché tenerla)} \\
+\hline
+\texttt{id} & \texttt{sp\_id} (o ID interno) & \texttt{id} & Identificatore tecnico del record (solo tracciamento, non matching). \\
+\texttt{source} & --- & --- & Colonna aggiunta manualmente per distinguere la sorgente (\texttt{A}/\texttt{B}). \\
+\texttt{make} & \texttt{franchise\_make} & \texttt{manufacturer} & Marca del veicolo: stabile, altamente discriminante, utile per blocking. \\
+\texttt{model} & --- & \texttt{model} & Identità primaria del veicolo (presente solo in B). \\
+\texttt{year} & --- & \texttt{year} & Discriminante forte (presente solo in B). \\
+\texttt{price} & --- & \texttt{price} & Numerico informativo (matching con tolleranza). \\
+\texttt{mileage} & \texttt{mileage} & \texttt{odometer} & Chilometraggio: informativo, da confrontare con distanza/soglia. \\
+\texttt{fuel} & \texttt{fuel\_type} & \texttt{fuel} & Carburante: categoriale stabile, riduce falsi positivi. \\
+\texttt{transmission} & \texttt{transmission} & \texttt{transmission} & Cambio: categoriale stabile. \\
+\texttt{drive} & \texttt{wheel\_system} & \texttt{drive} & Concetto equivalente (trazione): utile come feature soft. \\
+\texttt{body\_type} & \texttt{body\_type} & \texttt{type} & Tipo veicolo: utile e relativamente stabile. \\
+\texttt{engine\_cylinders} & \texttt{engine\_cylinders} & \texttt{cylinders} & Specifica tecnica stabile (soft feature). \\
+\texttt{engine\_displacement} & \texttt{engine\_displacement} & --- & Specifica tecnica (solo A), utile per affinare i match. \\
+\texttt{state} & --- & \texttt{state} & Localizzazione stabile (presente solo in B). \\
+\texttt{description} & \texttt{description} & \texttt{description} & Testo libero: usabile soprattutto con Ditto (NLP). \\
+\texttt{vin} & --- & \texttt{VIN} & Usato solo per \emph{ground truth} e poi rimosso (evitare leakage). \\
+\hline
+\end{tabular}
+\caption{Mapping dalle sorgenti allo schema mediato proposto.}
+\label{tab:mapping_mediated}
+\end{table}
+
+\subsection{Motivazioni delle scelte (riassunto)}
+Le scelte principali sono motivate da:
+\begin{enumerate}
+  \item \textbf{Stabilità semantica}: mantenute feature che descrivono il veicolo (marca, tipo, carburante, ecc.), escluse quelle legate al venditore o all'annuncio.
+  \item \textbf{Riduzione del rumore}: escluse colonne soggettive o non confrontabili in modo robusto.
+  \item \textbf{Utilità per il record linkage}: mantenute feature utili a blocking e matching; le feature testuali sono mantenute ma riservate a modelli NLP (Ditto).
+  \item \textbf{Gestione leakage}: \texttt{VIN} è ammesso solo per costruire la ground truth e deve essere rimosso prima di training e inferenza.
+\end{enumerate}
+
+
+\end{document}

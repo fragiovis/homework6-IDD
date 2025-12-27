@@ -1,0 +1,3 @@
+# ignora tutti i file di dataset (CSV, ZIP, ecc.)
+Dataset/**/*
+!Dataset/README.md
