@@ -27,7 +27,7 @@ def build_used_cars():
     out = pd.DataFrame()
     out['id'] = df.get('listing_id')          # id tecnico
     out['make'] = df.get('franchise_make')
-    out['model'] = df.get('model')
+    out['model'] = df.get('model_name')
     out['year'] = pd.to_numeric(df.get('year'), errors='coerce')
     out['price'] = pd.to_numeric(df.get('price'), errors='coerce')
     out['mileage'] = pd.to_numeric(df.get('mileage'), errors='coerce')
@@ -38,6 +38,7 @@ def build_used_cars():
     out['engine_cylinders'] = df.get('engine_cylinders')
     out['engine_displacement'] = pd.to_numeric(df.get('engine_displacement'), errors='coerce')
     out['state'] = None                       # non presente -> NaN
+    out['city'] = df.get('city')
     out['description'] = df.get('description')
     out['vin'] = df.get('vin')
     return out[SCHEMA_MEDIATO]
@@ -59,6 +60,7 @@ def build_vehicles():
     out['engine_cylinders'] = df.get('cylinders')
     out['engine_displacement'] = None         # non presente -> NaN
     out['state'] = df.get('state')
+    out['city'] = None
     out['description'] = df.get('description')
     out['vin'] = df.get('VIN')
     return out[SCHEMA_MEDIATO]
