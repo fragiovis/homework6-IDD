@@ -15,7 +15,7 @@ End-to-end **entity resolution** between two heterogeneous sources of US used-ca
 5. **Train/test split** (`prepare_datasets.py`).
 6. **Matching**, with two approaches:
    - **`recordlinkage` + logistic regression** (`run_recordlinkage.py`): Jaro-Winkler similarity on the model name, linear similarity on year and mileage, exact match on make and state; evaluated with precision, recall and F1;
-   - **`dedupe`** (`run_dedupe_linkage.py`): an active-learning record linker trained on the labelled pairs (`String`, `ShortString` and `Price` variables); trained settings are cached in `scripts/`.
+   - **`dedupe`** (`run_dedupe_linkage.py`): an active-learning record linker trained on the labelled pairs (`String`, `ShortString` and `Price` variables); trained settings are cached in `scripts/`. The labeled training pairs are generated locally and not versioned, because the listings contain seller contact details.
 
 ## Running it
 The raw datasets are not versioned. Download them from Kaggle and place them in `Dataset/` as `used_cars_data.csv` and `vehicles.csv`.

@@ -2,3 +2,6 @@
 Dataset/**/*
 !Dataset/README.md
 .DS_Store
+
+# Labeled training pairs: contain seller contact details from the listings
+scripts/dedupe_*_training.json
